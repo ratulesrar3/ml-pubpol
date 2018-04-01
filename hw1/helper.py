@@ -220,4 +220,28 @@ def plot_dist(df, title, xlab):
     plt.show()
     
     
+def combine_address(df, cols=['ADDRESS STREET NUMBER', 'ADDRESS STREET DIRECTION', 'ADDRESS STREET NAME', 'ADDRESS STREET SUFFIX']):
+    '''
+    Create Street Address column for buildings df
+    '''
+    address = []
+    df[cols[0]] = df[cols[0]].astype('int')
+    for index, row in df.iterrows():
+        s = ''
+        for i in range(len(cols)):
+            if i is 0:
+                s += str(row[cols[i]])
+            else:
+                s += ' ' + str(row[cols[i]])
+        address.append(s)
+    df['Street Address'] = pd.Series(address, index=df.index)
+    return df
 
+
+def search_by(df, col='Street Address', by='3600 W Roosevelt Ave'):
+    '''
+    Searches df[col] for term to return proportion of requests from that area
+    '''
+    df[col] = df[col].astype(str)
+    df_filter = df[df[col].str.contains(by, case=False)]
+    return len(df_filter) / len(df)
