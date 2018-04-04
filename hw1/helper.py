@@ -279,3 +279,10 @@ def combine_frames(files):
     df['response time'] = ((df['completion date'] - df['creation date']) / np.timedelta64(1, 'D')).astype(int)
 
     return df
+
+
+def summary(df, on, group_var1):
+    '''
+    returns grouped dataframe based on input cols
+    '''
+    return pd.DataFrame(df[on].groupby(df[group_var1]).describe()['mean'].sort_values(ascending=True,inplace=False))
