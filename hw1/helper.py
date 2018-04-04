@@ -245,3 +245,37 @@ def search_by(df, col='Street Address', by='3600 W Roosevelt Ave'):
     df[col] = df[col].astype(str)
     df_filter = df[df[col].str.contains(by, case=False)]
     return len(df_filter) / len(df)
+
+
+def combine_frames(files):
+    '''
+    Read data and combine the data into one table
+    '''
+    frames = [pd.read_pickle(file) for file in files]
+    for frame in frames:
+        frame.columns = map(str.lower, frame.columns)
+    df = pd.concat(frames)
+
+    # combine zip and zip code
+    df['zip code'].fillna(df['zip code'], inplace=True)
+    return df
+    # drop other columns
+    df.drop(df.columns[[0,1,2,3,4,9,10,11,12,13,14,17]], axis=1, inplace=True)
+ 
+    # drop rows with NANs in essential columns
+    df.dropna(subset=['community area','zip code','ward','police district','creation date','completion date','latitude'], inplace=True)
+
+    # convert to categories
+    cat = df[['type of service request','status','what type of surface is the graffiti on?']]
+    df[['type of service request','status','what type of surface is the graffiti on?']] = cat.apply(lambda x: x.astype('category'))
+
+    # convert to integer
+    ints = df[['community area','police district','ward','zip code']]
+    df[['community area','police district','ward','zip code']] = ints.apply(lambda x: x.astype('int'))
+
+    # convert to datetime
+    df['creation date'] = pd.to_datetime(df['creation date'],infer_datetime_format=True)
+    df['completion date'] = pd.to_datetime(df['completion date'],infer_datetime_format=True)
+    df['response time'] = ((df['completion date'] - df['creation date']) / np.timedelta64(1, 'D')).astype(int)
+
+    return df
