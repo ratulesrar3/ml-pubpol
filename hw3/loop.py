@@ -1,3 +1,6 @@
+import warnings
+warnings.simplefilter('ignore')
+
 from methods import *
 from preprocess import *
 
@@ -11,10 +14,10 @@ GRID = TEST_GRID
 PREDICTION_DATE = 'date_posted'
 
 # outcome
-OUTCOME = 'label'
+OUTCOME = 'fully_funded'
 
 # list of classifier models to run
-TO_RUN = ['GB','RF','DT','KNN','LR','NB']
+TO_RUN = ['LR', 'KNN', 'DT', 'SVM', 'RF', 'GB', 'ET']
 
 CUTOFF_VAL_PAIRS = [('2011-06-30', '2011-12-31'), ('2011-12-31', '2012-06-30'),
                     ('2012-06-30', '2012-12-31'), ('2012-12-31', '2013-06-30'),
@@ -38,35 +41,34 @@ def prep_data(clean_train, clean_test, features):
     '''
     features = list(features)
     X_train = clean_train.filter(features)
-    y_train = clean_train.filter(OUTCOME)
+    y_train = clean_train[OUTCOME].to_frame()
     X_test = clean_test.filter(features)
-    y_test = clean_test.filter(OUTCOME)
+    y_test = clean_test[OUTCOME].to_frame()
     return X_train, X_test, y_train, y_test
 
 
-# define dataframe to write results to
-RESULTS_DF =  pd.DataFrame(columns=('model_type','clf', 'parameters', 'validation_date',
-                                    'train_set_size', 'validation_set_size', 'baseline',
-                                    'precision_at_5','precision_at_10','precision_at_20',
-                                    'recall_at_5','recall_at_10','recall_at_20','auc-roc'))
+# adapted from Rayid's magic loop
+def temporal_validation_loop(df, outfile, cv_pairs=CUTOFF_VAL_PAIRS, grid=TEST_GRID, models=TO_RUN):
 
+    # define dataframe to write results to
+    results_df =  pd.DataFrame(columns=('model_type','clf', 'parameters', 'validation_date',
+                                        'train_set_size', 'validation_set_size', 'baseline',
+                                        'precision_at_5','precision_at_10','precision_at_20',
+                                        'recall_at_5','recall_at_10','recall_at_20','auc-roc'))
 
+    for c, v in cv_pairs:
+        print('CUTOFF: {} VALIDATION: {}'.format(c, v))
 
-def temporal_validation_loop(df, grid_size=TEST_GRID):
-    '''
-    Loops through dates for temporal validation
-    '''
-    for c, v in CUTOFF_VAL_PAIRS:
         train, test = temporal_split(df, PREDICTION_DATE, c, v)
         X_train, X_test, y_train, y_test = prep_data(*pre_process(train, test))
 
-        for i, clf in enumerate([CLASSIFIERS[x] for x in TO_RUN]):
-            print(TO_RUN[i])
-            params = GRID[TO_RUN[i]]
+        for i, clf in enumerate([CLASSIFIERS[x] for x in models]):
+            #print(TO_RUN[i])
+            params = grid[models[i]]
             for p in ParameterGrid(params):
                 try:
+
                     clf.set_params(**p)
-                    clf.fit(X_train, y_train)
                     y_pred_probs = clf.fit(X_train, y_train.values.ravel()).predict_proba(X_test)[:,1]
                     y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test.values.ravel()), reverse=True))
 
@@ -74,56 +76,44 @@ def temporal_validation_loop(df, grid_size=TEST_GRID):
                     precision_10, accuracy_10, recall_10 = scores_at_k(y_test_sorted,y_pred_probs_sorted,10.0)
                     precision_20, accuracy_20, recall_20 = scores_at_k(y_test_sorted,y_pred_probs_sorted,20.0)
 
-                    RESULTS_DF.loc[len(RESULTS_DF)] = [TO_RUN[i], clf, p, v,
-                                                        y_train.shape[0], y_test.shape[0],
-                                                        scores_at_k(y_test_sorted,y_pred_probs_sorted,100.0),
-                                                        precision_5, precision_10, precision_20,
-                                                        recall_5, recall_10, recall_20,
-                                                        roc_auc_score(y_test, y_pred_probs)]
+                    results_df.loc[len(results_df)] = [TO_RUN[i], clf, p, v,
+                                                    y_train.shape[0], y_test.shape[0],
+                                                    scores_at_k(y_test_sorted, y_pred_probs_sorted,100.0)[1],
+                                                    precision_5, precision_10, precision_20,
+                                                    recall_5, recall_10, recall_20,
+                                                    roc_auc_score(y_test, y_pred_probs)]
 
-                    plot_precision_recall_n(y_test,y_pred_probs,clf)
+                    #plot_precision_recall_n(y_test,y_pred_probs,clf)
 
                 except IndexError:
                     print('Error')
                     continue
+    
+    results_df.to_pickle(outfile)
+    return results_df
 
-    return RESULTS_DF
 
+def main():
+    '''
+    Usage: python loop.py data/joined2011_2013.pkl LR SMALL_GRID results/LR_results.pkl
+    '''
+    print('Number of arguments:', len(sys.argv), 'arguments.')
+    print('Argument List:', str(sys.argv))
 
+    # pickle of data
+    datafile = sys.argv[1]
 
-### original classfifier loop ###
+    # model to run
+    model = list(sys.argv[2])
 
-def classifiers_loop(X_train, X_test, y_train, y_test, grid_size=TEST_GRID):
-    results =  pd.DataFrame(columns=('model_type','clf', 'parameters', 'auc-roc',
-                                     'precision_5', 'accuracy_5', 'recall_5',
-                                     'precision_10', 'accuracy_10', 'recall_10',
-                                     'precision_20', 'accuracy_20', 'recall_20',
-                                     'runtime', 'y_pred_probs'))
-    for i, clf in enumerate([CLASSIFIERS[x] for x in TO_RUN]):
-        #print(TO_RUN[i])
-        params = grid_size[TO_RUN[i]]
-        for p in ParameterGrid(params):
-            try:
-                start_time = time.time()
-                clf.set_params(**p)
+    # grid size
+    grid = sys.argv[3]
+    
+    # output filename
+    outfile = sys.argv[4]
 
-                y_pred_probs = clf.fit(X_train, y_train.values.ravel()).predict_proba(X_test)[:,1]
-                y_pred_probs_sorted, y_test_sorted = zip(*sorted(zip(y_pred_probs, y_test.values.ravel()), reverse=True))
-                end_time = time.time()
-                tot_time = end_time - start_time
-                #print(p)
-                precision_5, accuracy_5, recall_5 = scores_at_k(y_test_sorted,y_pred_probs_sorted,5.0)
-                precision_10, accuracy_10, recall_10 = scores_at_k(y_test_sorted,y_pred_probs_sorted,10.0)
-                precision_20, accuracy_20, recall_20 = scores_at_k(y_test_sorted,y_pred_probs_sorted,20.0)
-                results.loc[len(results)] = [TO_RUN[i], clf, p,
-                                                       roc_auc_score(y_test, y_pred_probs),
-                                                       precision_5, accuracy_5, recall_5,
-                                                       precision_10, accuracy_10, recall_10,
-                                                       precision_20, accuracy_20, recall_20,
-                                                       tot_time, y_pred_probs]
-                #plot_precision_recall_n(y_test,y_pred_probs,clf)
-            except IndexError:
-                print('Error')
-                continue
+    temporal_validation_loop(pd.read_pickle(datafile), outfile, cv_pairs=CUTOFF_VAL_PAIRS, grid=TEST_GRID, models=TO_RUN)
+    
 
-    return results
+if __name__ == '__main__':
+    main()
