@@ -17,11 +17,9 @@ PREDICTION_DATE = 'date_posted'
 OUTCOME = 'fully_funded'
 
 # list of classifier models to run
-TO_RUN = ['LR', 'KNN', 'DT', 'SVM', 'RF', 'GB', 'ET']
+TO_RUN = ['LR', 'KNN', 'DT', 'RF', 'GB', 'ET']
 
-CUTOFF_VAL_PAIRS = [('2011-06-30', '2011-12-31'), ('2011-12-31', '2012-06-30'),
-                    ('2012-06-30', '2012-12-31'), ('2012-12-31', '2013-06-30'),
-                    ('2013-06-30', '2013-12-31')]
+CUTOFF_VAL_PAIRS = [('2011-12-31', '2012-12-31'), ('2012-12-31', '2013-12-31')]
 
 def temporal_split(df, col, cutoff_date, validation_date):
     '''
@@ -63,7 +61,7 @@ def temporal_validation_loop(df, outfile, cv_pairs=CUTOFF_VAL_PAIRS, grid=TEST_G
         X_train, X_test, y_train, y_test = prep_data(*pre_process(train, test))
 
         for i, clf in enumerate([CLASSIFIERS[x] for x in models]):
-            #print(TO_RUN[i])
+            print(models[i])
             params = grid[models[i]]
             for p in ParameterGrid(params):
                 try:
@@ -76,7 +74,7 @@ def temporal_validation_loop(df, outfile, cv_pairs=CUTOFF_VAL_PAIRS, grid=TEST_G
                     precision_10, accuracy_10, recall_10 = scores_at_k(y_test_sorted,y_pred_probs_sorted,10.0)
                     precision_20, accuracy_20, recall_20 = scores_at_k(y_test_sorted,y_pred_probs_sorted,20.0)
 
-                    results_df.loc[len(results_df)] = [TO_RUN[i], clf, p, v,
+                    results_df.loc[len(results_df)] = [models[i], clf, p, v,
                                                     y_train.shape[0], y_test.shape[0],
                                                     scores_at_k(y_test_sorted, y_pred_probs_sorted,100.0)[1],
                                                     precision_5, precision_10, precision_20,
@@ -115,5 +113,5 @@ def main():
     temporal_validation_loop(pd.read_pickle(datafile), outfile, cv_pairs=CUTOFF_VAL_PAIRS, grid=TEST_GRID, models=TO_RUN)
     
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()

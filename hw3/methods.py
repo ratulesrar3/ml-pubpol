@@ -129,3 +129,23 @@ def plot_precision_recall_n(y_true, y_prob, model_name):
     name = model_name
     plt.title(name)
     plt.show()
+
+    
+def get_feature_importance(clf, model_name):
+    clfs = {'RF':'feature_importances',
+            'LR': 'coef',
+            'SVM': 'coef',
+            'DT': 'feature_importances',
+            'KNN': None,
+            'AB': 'feature_importances',
+            'GB': None,
+            'linear.SVC': 'coef',
+            'ET': 'feature_importances'
+            }
+
+    if clfs[model_name] == 'feature_importances':
+        return  list(clf.feature_importances_)
+    elif clfs[model_name] == 'coef':
+        return  list(clf.coef_.tolist())
+    else:
+        return None

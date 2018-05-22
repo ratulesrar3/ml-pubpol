@@ -1,27 +1,38 @@
-In this homework, you'll you've continue to build the Machine Learning pipeline by combining what you have been doing in labs and your previous homework(s). The goal is to improve the pipeline based on the feedback from previous assignments, and add a few components based on what we've covered in the past few lectures. More specifically, you need to:
+### Predicting Fully Funded Projects at Time of Posting
 
- Coding Assignment:
+#### Summary
 
-1. Fix and improve the pipeline code you submitted for the last assignment based on the feedback from the TA. if something critical was pointed out in the feedback, you need to fix it. 
+This report explains the results of setting up a machine learning pipeline to predict whether a Donors Choose project will be fully funded at the time it is posted. Using the 2011-2013 project data, we trained several models using outcomes from the 2011-2012 data and then tested using the 2012-2013 data. After comparing several metrics, arrive at an optimal model for the client. This model can be used to identify and rank projects at risk of not being fully funded. In turn, the client may create interventions to help bolster the proposals of projects that are at risk of not getting fully funded. 
 
-2. Add more classifiers to the pipeline on the code you've written in lab. I’d recommend at least having Logistic Regression, K-Nearest Neighbor, Decision Trees, SVM, Random Forests, Boosting, and Bagging. The code should have a parameter for running one or more of these classifiers and your analysis should run all of them.
+#### Exploratory Analysis
 
-3. Experiment with different parameters for these classifiers (different values of k for example, as well as parameters that other classifiers have). You should look at the sklearn documentation to see what parameter each classifier can take and what the default values sklearn selects.
+Of the 2011-2012 projects, about 72 percent were fully funded within a year of being posted. For the 2012-2013 data, the percentage is slightly lower at 70 percent being fully funded. The project data include many school characteristics, including but not limited to
 
-4. Add additional evaluation metrics that we've covered in class to the pipeline (accuracy, precision at different levels, recall at different levels, F1, area under curve, and precision-recall curves).
+- whether a school is a magnet or charter school
+- whether the poster is a Teach for America teacher
+- school state/zip code
+- grade level
+- primary/second focus area
+- total pricing including and excluding optional support
+- students reached
 
-5. Create temporal validation function in your pipeline that can create training and test sets over time. You can choose the length of these splits based on analyzing the data. For example, the test sets could be six months long and the training sets could be all the data before each test set.
+After exploring and cleaning the data, we use these characterisitcs to make predictions. However, there is opportunity to augment the characteristics used for predictions by adding neighborhood demographic information based on a school's latitude and longitude. This could help control for neighbordhood effects and identify whether schools in less affluent areas have more projects get posted or fully funded. 
 
-Analysis:
+#### Methods
 
-5. Once you've set up the improved pipeline, you can use it to solve the problem at https://www.kaggle.com/c/kdd-cup-2014-predicting-excitement-at-donors-choose/data (Links to an external site.)Links to an external site.
+The pipeline is capable of applying several methods to train models using different combinations of parameters to optimize different evaluation metrics. This analysis implements decision trees, k-nearest neighbors, logisitc regression, as well as random forests and other ensemble boosting methods. Each of these methods attempts to understand which variables or features of the training data are useful in predicting the outcome, whether a project is fully funded. Some methods suffer from overfitting on the training data, which is why ensemble methods often improve on the results of normal methods. 
 
-instead of using all the data, please only use the data from projects and outcomes files (and to make things simpler use data from years 2011-2013 The goal is to predict, at posting time of a project,  if a project will not get fully funded so we can intervene and help them improve the project listing. 
+#### Evaluation
 
-The code should produce a table with results across train test splits over time and performance metrics (baseline, precision and recall at different thresholds 1%, 2%, 5%, 10%, 20%, 30%, 50% and AUC_ROC)
+We evaluate the models based on a combination of metrics including precision, recall, and area under the roc curve (AUC). Precision is the rate of positive predicted values, while recall is the ratio of true positives to all positives. AUC gives us an understanding of the tradeoffs between precision and recall at various thresholds of the population, but the score itself is based on the entire population of interest. 
 
-Report:
+Working under the assumption that the client has infinite resources is often tenuous, so we assume the client would like to target the top 5 percent of posts with the highest risk scores of not being fully funded. Based on this, we can choose the best performing model using precision at 5 percent of the population. 
 
-You should also write a short report (~2 pages) that compares the performance of the different classifiers across all the metrics for the data set used in the last assignment. Which classifier does better on which metrics? How do the results change over time? What would be your recommendation to someone who's working on this model on what model to go forward with?
+Using precision at 5 percent, we find that logistic regression models performed the best. That being said, KNN and decision trees performed the best based on AUC and recall, respectively. In addition, the non-ensemble methods saw decreases in performance over time but only slightly. The models trained using methods did not perform as well for this temporal data, but there is room for more model tweaking by expanding the set of parameter combinations used. This is another opportunity to improve the pipeline. 
 
-The report should not be a list of graphs and numbers. It needs to explain to a policy audience the implications of your analysis and your recommendations as a memo you would send to a business/policy audience.
+Another way to improve the pipeline is to obtain the most important features of the top performing models and then re-training the models to check whether the results improve. Obtaining the important features using a decision tree with a small number of levels could also help confirm expert heuristics that have traditionally been used to identify at-risk subjects. 
+
+#### Recommendations & Policy Implications
+
+Using our top performing model based on precision at 5 percent of the population, we recommend the client apply this model to incoming projects and then use the risk scores to provide extra resources to these posts in terms of promotion on the front page of the website. In addition, these insights could help inform a guidebook on how to create a successful project post to offer new posters. This could be offered as a premium service provided by the client. Granted, this may fall within a gray area in terms of ethics since the risk scores could be perceived as a proxy for "valuable projects" when in reality, almost all of the projects on the site have some sort of value proposition with social impact in mind. 
+

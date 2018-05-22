@@ -30,7 +30,7 @@ LOCATION = ['school_latitude', 'school_longitude', 'school_city', 'school_state'
 
 # columns to scale
 SCALERS = ['fulfillment_labor_materials', 'total_price_excluding_optional_support',
-         'total_price_including_optional_support', 'students_reached']
+           'total_price_including_optional_support', 'students_reached']
 
 # columns to impute missing values
 IMPUTE_BY = {'students_reached': 'mean'}
